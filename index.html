@@ -127,7 +127,7 @@
             }
             return data;
           })
-          .then(({ places = [], tax }) => {
+          .then(({ places = [], tax, message }) => {
             const [place] = places;
             if (!place) {
               result.textContent = 'No places found.';
@@ -143,6 +143,13 @@
             const addressElement = document.createElement('span');
             addressElement.textContent = formattedAddress;
             result.append(nameElement, document.createElement('br'), addressElement);
+
+            if (message) {
+              const messageElement = document.createElement('p');
+              messageElement.textContent = message;
+              result.append(messageElement);
+              return;
+            }
 
             if (tax) {
               const taxDetails = document.createElement('div');

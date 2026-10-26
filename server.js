@@ -53,6 +53,13 @@ async function searchPlaces(request, response) {
     }));
     const [place] = places;
     const address = parseAddress(place?.formattedAddress);
+    if (address?.state && address.state !== 'WA') {
+      return sendJson(response, 200, {
+        places,
+        message: 'A Washington State address was not returned.  Please search for a place in Washington State.',
+      });
+    }
+
     if (!address) {
       return sendJson(response, 422, {
         error: 'The selected place did not include a U.S. street address and ZIP code.',
@@ -78,7 +85,7 @@ async function searchPlaces(request, response) {
         error: { message: 'Washington DOR request failed.', details: dorData },
       });
     }
-
+    
     sendJson(response, 200, { places, address, tax: parseDorResponse(dorData) });
   } catch (error) {
     sendJson(response, 502, { error: { message: 'Could not complete the address lookup.', details: error.message } });
@@ -88,18 +95,20 @@ async function searchPlaces(request, response) {
 function parseAddress(formattedAddress) {
   if (!formattedAddress) return null;
 
+  const stateMatch = formattedAddress.match(/,\s*([A-Z]{2})(?=\s+\d{5}(?:-\d{4})?\s*$|\s*$)/);
+  if (!stateMatch) return null;
+
   const zipMatch = formattedAddress.match(/\b(\d{5})(?:-\d{4})?\b/);
+  const state = stateMatch[1];
+  if (state !== 'WA') return { state };
   if (!zipMatch) return null;
 
   const addressBeforeZip = formattedAddress.slice(0, zipMatch.index).replace(/[\s,]+$/, '');
-  const stateMatch = addressBeforeZip.match(/,\s*[A-Z]{2}$/);
-  if (!stateMatch) return null;
-
   const streetAndCity = addressBeforeZip.slice(0, stateMatch.index);
   const lastComma = streetAndCity.lastIndexOf(',');
   const streetAddress = streetAndCity.slice(0, lastComma).trim();
 
-  return streetAddress ? { streetAddress, zip: zipMatch[1] } : null;
+  return streetAddress ? { state, streetAddress, zip: zipMatch[1] } : null;
 }
 
 function stripCountrySuffix(formattedAddress) {
